@@ -1,0 +1,180 @@
+Sub TimeSheetSummary()
+    Dim dirPath As String
+    dirPath = Application.ActiveWorkbook.Path
+    
+    Dim currName As String
+    currName = Application.ActiveWorkbook.name
+    
+    Dim currBook As Workbook
+    Set currBook = Application.ActiveWorkbook
+    
+    Dim files As Variant
+    files = listFiles(dirPath, currName)
+    
+    Dim globalDict As Object
+    Set globalDict = CreateObject("Scripting.Dictionary")
+        
+    Dim row As Integer
+    row = 1
+    
+    For Each name In files
+        If name = "" Then
+            Exit For
+        End If
+        
+        Dim book As Workbook
+        Set book = Workbooks.Open(dirPath & "\" & name)
+        
+        Dim dict As Object
+        Set dict = CreateObject("Scripting.Dictionary")
+        Set dict = map(book)
+    
+        Set globalDict = addToGlobalDict(globalDict, dict)
+        
+        book.Close
+        row = row + 1
+    Next
+        
+    writeDict globalDict
+    
+    
+End Sub
+===================================================================================================
+Function listFiles(ByVal sPath As String, currName As String)
+
+    Dim vaArray     As Variant
+    Dim i           As Integer
+    Dim oFile       As Object
+    Dim oFSO        As Object
+    Dim oFolder     As Object
+    Dim oFiles      As Object
+
+    Set oFSO = CreateObject("Scripting.FileSystemObject")
+    Set oFolder = oFSO.GetFolder(sPath)
+    Set oFiles = oFolder.files
+
+    If oFiles.Count = 0 Then Exit Function
+
+    ReDim vaArray(1 To oFiles.Count)
+    i = 1
+    For Each oFile In oFiles
+        If oFile.name <> currName And startWith(oFile.name, "~$") <> True Then
+            vaArray(i) = oFile.name
+            i = i + 1
+        End If
+    Next
+
+    listFiles = vaArray
+
+End Function
+
+===================================================================================================
+
+Function startWith(name As String, prefix As String)
+    If name Like prefix + "*" Then
+        startWith = True
+    Else
+        startWith = False
+    End If
+End Function
+
+===================================================================================================
+Function map(ByRef book As Workbook)
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    Dim projectName As String
+    Dim sum As Integer
+    Dim row As Integer
+    row = 2
+    
+    For row = 2 To lastRow(book)
+        projectName = Cells(row, 1)
+        sum = sumRow(book, row)
+        Set dict = addToDict(dict, projectName, sum)
+    Next
+    
+    Set map = dict
+    
+End Function
+===================================================================================================
+Function sumRow(book As Workbook, row As Integer)
+    Dim sum As Integer
+    sum = 0
+    For col = 2 To lastCol(book)
+        Dim val As Integer
+        val = 0
+        
+        If book.Worksheets(1).Cells(row, col) <> "" And WorksheetFunction.IsNumber(Cells(row, col)) Then
+            val = Cells(row, col)
+        Else
+            val = 0
+        End If
+        
+        sum = sum + val
+    Next
+    
+    sumRow = sum
+End Function
+===================================================================================================
+Function lastRow(book As Workbook)
+    lastRow = book.Worksheets(1).Cells(book.Worksheets(1).Rows.Count, "A").End(xlUp).row
+End Function
+===================================================================================================
+Function lastCol(book As Workbook)
+    lastCol = book.Worksheets(1).Cells(1, ActiveSheet.Columns.Count).End(xlToLeft).Column
+End Function
+===================================================================================================
+Function addToDict(dict As Object, key As String, sum As Integer)
+    If dict.Exists(key) Then
+        Dim currSum As Integer
+        currSum = dict(key)
+        dict(key) = currSum + sum
+    Else
+        dict.Add key, sum
+    End If
+    
+    Set addToDict = dict
+End Function
+===================================================================================================
+Function addToGlobalDict(globalDict As Object, localDict As Object)
+    For Each key In localDict.keys
+        If globalDict.Exists(key) Then
+            Dim currSum As Integer
+            currSum = globalDict(key)
+            globalDict(key) = currSum + localDict(key)
+        Else
+            globalDict.Add key, localDict(key)
+        End If
+    
+    Next
+    
+    Set addToGlobalDict = globalDict
+End Function
+
+===================================================================================================
+Function writeDict(dict As Object)
+  
+    Dim row As Integer
+    row = 1
+    
+    For Each key In dict.keys
+        Cells(row, 1) = key
+        Cells(row, 2) = dict(key)
+        row = row + 1
+    Next
+End Function
+===================================================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
